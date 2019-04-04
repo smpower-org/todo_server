@@ -8,34 +8,38 @@ var https = require('https');
 var fs = require('fs');
 var bodyParser = require('body-parser');
 var mysql = require('mysql');
-var crypto = require('crypto');
-
+var { createToken, decodeToken, checkToken } = require('./token');
+// var crypto = require('crypto');
 
 var app = express();
-var connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'ruofei',
+
+var mysqlConnection = {
+  host: '172.17.0.1',
+  port: '3306',
+  user: 'root',
   password: 'rf.wangchn',
-  database: 'todo'
-});
-var hash = crypto.createHash('sha512');
+  database: 'todo',
+};
+
+var connection = mysql.createConnection(mysqlConnection);
+// var hash = crypto.createHash('sha512');
 
 // 创建加密算法
-const aseEncode = function(data, password) {
-  // 如下方法使用指定的算法与密码来创建cipher对象
-  const cipher = crypto.createCipher('aes192', password);
-
-  // 使用该对象的update方法来指定需要被加密的数据
-  let crypted = cipher.update(data, 'utf-8', 'hex');
-
-  crypted += cipher.final('hex');
-
-  return crypted;
-};
+// const aseEncode = function(data, password) {
+//   // 如下方法使用指定的算法与密码来创建cipher对象
+//   const cipher = crypto.createCipher('aes192', password);
+// 
+//   // 使用该对象的update方法来指定需要被加密的数据
+//   let crypted = cipher.update(data, 'utf-8', 'hex');
+// 
+//   crypted += cipher.final('hex');
+// 
+//   return crypted;
+// };
 
 // 创建解密算法
-var aseDecode = function(data, password) {
-};
+// var aseDecode = function(data, password) {
+// };
 
 // all environments
 app.set('port', 1115);
@@ -89,16 +93,12 @@ app.post('/todo/test/post', function(req, res, next) {
 
 // 用户注册
 app.post('/todo/regist', function(req, res, next) {
-  const crypwd = aseEncode(req.body.password, req.body.email);
+  // const crypwd = aseEncode(req.body.password, req.body.email);
   const addSql = `INSERT INTO user(username, email, password) VALUES(?, ?, ?)`;
-  const addSqlParams = [req.body.username, req.body.email, crypwd];
+  // const addSqlParams = [req.body.username, req.body.email, crypwd];
+  const addSqlParams = [req.body.username, req.body.email, req.body.password];
 
-  var connection = mysql.createConnection({
-    host     : 'localhost',
-    user     : 'ruofei',
-    password : 'rf.wangchn',
-    database : 'todo'
-  });
+  var connection = mysql.createConnection(mysqlConnection);
 
   connection.connect();
 
@@ -121,18 +121,14 @@ app.post('/todo/regist', function(req, res, next) {
 // 用户登录
 app.post('/todo/login', function(req, res, next) {
   const {email, password} = req.body;
-  const crypwd = aseEncode(password, email);
-  const cryemail = aseEncode(email, crypwd);
+  // const crypwd = aseEncode(password, email);
+  // const cryemail = aseEncode(email, crypwd);
 
   const selectSql = `SELECT * FROM user WHERE email = ? AND password = ?`;
-  const selectSqlParams = [email, crypwd];
+  // const selectSqlParams = [email, crypwd];
+  const selectSqlParams = [email, password];
 
-  const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'ruofei',
-    password: 'rf.wangchn',
-    database: 'todo'
-  });
+  const connection = mysql.createConnection(mysqlConnection);
 
   connection.connect();
 
@@ -140,9 +136,17 @@ app.post('/todo/login', function(req, res, next) {
     if (error) throw error;
 
     if (results.length === 1) {
-      const username = results[0].username;
-      res.json({isLogined: true, username, cryemail, crypwd});
-    } else res.json({isLogined: false});
+      const { uid, username } = results[0];
+      res.json({
+        status: 0,
+	message: '登录成功',
+	uid: uid,
+	token: createToken({email, password, username})
+      });
+    } else res.json({
+      status: 1,
+      message: '用户名或密码错误',
+    });
   });
 });
 
@@ -153,12 +157,7 @@ app.post('/todo/isUsernameExisted', function(req, res, next) {
   const selectSql = `SELECT * FROM user WHERE username = ?`;
   const selectSqlParams = [username];
 
-  const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'ruofei',
-    password: 'rf.wangchn',
-    database: 'todo'
-  });
+  const connection = mysql.createConnection(mysqlConnection);
 
   connection.connect();
 
@@ -184,12 +183,7 @@ app.post('/todo/isEmailExisted', function(req, res, next) {
   const selectSql = `SELECT * FROM user WHERE email = ?`;
   const selectSqlParams = [email];
 
-  const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'ruofei',
-    password: 'rf.wangchn',
-    database: 'todo'
-  });
+  const connection = mysql.createConnection(mysqlConnection);
 
   connection.connect();
 
